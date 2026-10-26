@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stock Opname Pro - Packer System</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SheetJS (xlsx) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            touch-action: manipulation;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 767px) {
+            .mobile-card {
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+                background-color: #ffffff;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="bg-indigo-700 text-white sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/10 p-2 rounded-xl backdrop-blur-md">
+                    <i data-lucide="boxes" class="w-6 h-6 text-indigo-200"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold leading-tight">StockOpnamePro</h1>
+                    <p class="text-xs text-indigo-200">Sistem Audit Inventaris Gudang</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-3 ml-auto">
+                <div class="bg-indigo-800/80 px-3 py-1.5 rounded-lg border border-indigo-500/30 text-xs flex items-center space-x-2">
+                    <i data-lucide="user-check" class="w-4 h-4 text-emerald-400"></i>
+                    <div>
+                        <span class="text-indigo-300 block text-[10px] leading-none uppercase tracking-wider font-semibold">Petugas:</span>
+                        <span class="font-bold text-white leading-none">Packer</span>
+                    </div>
+                </div>
+
+                <button onclick="exportToExcel()" class="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all shadow-sm">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Ekspor Excel</span>
+                    <span class="sm:hidden">Excel</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+
+        <!-- Stat Cards Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider">Total Barang</span>
+                    <div class="p-2 bg-slate-100 rounded-lg text-slate-600">
+                        <i data-lucide="package" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div>
+                    <span id="stat-total-items" class="text-xl sm:text-3xl font-extrabold text-slate-900">0</span>
+                    <span class="text-xs text-slate-500 ml-1">SKU</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between text-emerald-600 mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider">Sesuai</span>
+                    <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div>
+                    <span id="stat-matched" class="text-xl sm:text-3xl font-extrabold text-emerald-600">0</span>
+                    <span class="text-xs text-emerald-600/70 ml-1">Barang</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between text-amber-600 mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider">Plus (+)</span>
+                    <div class="p-2 bg-amber-50 rounded-lg text-amber-600">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div>
+                    <span id="stat-surplus" class="text-xl sm:text-3xl font-extrabold text-amber-600">0</span>
+                    <span class="text-xs text-amber-600/70 ml-1">Barang</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between text-rose-600 mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider">Minus (-)</span>
+                    <div class="p-2 bg-rose-50 rounded-lg text-rose-600">
+                        <i data-lucide="arrow-down-right" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div>
+                    <span id="stat-deficit" class="text-xl sm:text-3xl font-extrabold text-rose-600">0</span>
+                    <span class="text-xs text-rose-600/70 ml-1">Barang</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar Status -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+            <div class="flex justify-between items-center text-xs font-medium text-slate-600">
+                <span>Status Akurasi Opname</span>
+                <span id="accuracy-percentage" class="font-bold text-slate-900">0% Sesuai</span>
+            </div>
+            <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
+                <div id="bar-matched" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+                <div id="bar-surplus" class="bg-amber-500 h-full transition-all duration-300" style="width: 0%"></div>
+                <div id="bar-deficit" class="bg-rose-500 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                    <span>Sesuai</span>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                    <span>Plus</span>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+                    <span>Minus</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar: Search, Filter & Add Button -->
+        <div class="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-3 justify-between items-center">
+            
+            <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-1">
+                <div class="relative w-full">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari Kode Barang, Kode Rak, Nama..." 
+                           class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                    <select id="filter-category" onchange="renderTable()" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ALL">Semua Kategori</option>
+                    </select>
+
+                    <select id="filter-rack" onchange="renderTable()" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ALL">Semua Rak</option>
+                    </select>
+
+                    <select id="filter-status" onchange="renderTable()" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ALL">Semua Status</option>
+                        <option value="SESUAI">Sesuai</option>
+                        <option value="PLUS">Plus</option>
+                        <option value="MINUS">Minus</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+                <button onclick="clearAllData()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold border border-rose-200 transition-all flex items-center space-x-1">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Bersihkan</span>
+                </button>
+                <button onclick="openModal('add')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center space-x-1.5 shadow-sm flex-1 sm:flex-initial">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Tambah Barang</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Desktop View Table & Mobile Card View Container -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            
+            <!-- Desktop Table (Visible on md+) -->
+            <div class="hidden md:block overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3.5 px-4">Barang & Kode</th>
+                            <th class="py-3.5 px-3">Kode Rak</th>
+                            <th class="py-3.5 px-3">Kategori</th>
+                            <th class="py-3.5 px-3 text-center">Stok Sistem</th>
+                            <th class="py-3.5 px-3 text-center">Stok Fisik</th>
+                            <th class="py-3.5 px-3 text-center">Selisih</th>
+                            <th class="py-3.5 px-3 text-center">Status</th>
+                            <th class="py-3.5 px-3">Catatan</th>
+                            <th class="py-3.5 px-4 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="desktop-table-body" class="divide-y divide-slate-100 text-xs">
+                        <!-- Items rendered via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Card Layout (Visible on < md) -->
+            <div id="mobile-card-container" class="md:hidden p-3 space-y-3">
+                <!-- Cards rendered via JS -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden p-8 text-center space-y-3">
+                <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+                    <i data-lucide="inbox" class="w-6 h-6"></i>
+                </div>
+                <div class="text-slate-500">
+                    <p class="font-medium text-slate-700">Belum ada data barang</p>
+                    <p class="text-xs mt-1">Klik tombol "Tambah Barang" di atas untuk mulai menambahkan barang Anda.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Form (Tambah / Edit Barang) -->
+    <div id="item-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-slate-100 transform transition-all">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+                <h3 id="modal-title" class="font-bold text-slate-800 text-base">Tambah Barang Baru</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="item-form" onsubmit="handleFormSubmit(event)" class="space-y-3 text-xs sm:text-sm">
+                <input type="hidden" id="form-item-id">
+
+                <div>
+                    <label class="block text-slate-600 font-medium mb-1">Kode Barang / SKU <span class="text-rose-500">*</span></label>
+                    <input type="text" id="form-sku" required placeholder="Contoh: BRG-001" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-600 font-medium mb-1">Kode Rak <span class="text-rose-500">*</span></label>
+                        <input type="text" id="form-rack" required placeholder="Contoh: RAK-A1" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-medium mb-1">Kategori <span class="text-rose-500">*</span></label>
+                        <input type="text" id="form-category" required placeholder="Contoh: Makanan, Elektronik" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-600 font-medium mb-1">Nama Barang <span class="text-rose-500">*</span></label>
+                    <input type="text" id="form-name" required placeholder="Masukkan nama lengkap barang" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-slate-600 font-medium mb-1">Stok Sistem</label>
+                        <input type="number" id="form-system-stock" min="0" value="0" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-medium mb-1">Stok Fisik</label>
+                        <input type="number" id="form-physical-stock" min="0" value="0" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-medium mb-1">Satuan</label>
+                        <input type="text" id="form-unit" placeholder="Pcs/Box" value="Pcs" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-600 font-medium mb-1">Catatan / Alasan Selisih</label>
+                    <textarea id="form-notes" rows="2" placeholder="Catatan opsional jika terjadi selisih stok..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                </div>
+
+                <div class="pt-3 flex space-x-2 justify-end">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-all shadow-sm">Simpan Barang</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const STORAGE_KEY = 'STOCK_OPNAME_PACKER_DATA_V3';
+        let items = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            lucide.createIcons();
+        });
+
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    items = JSON.parse(saved);
+                } catch (e) {
+                    items = [];
+                }
+            } else {
+                items = [];
+            }
+            updateUI();
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+            updateUI();
+        }
+
+        function updateUI() {
+            updateStats();
+            populateFilters();
+            renderTable();
+            lucide.createIcons();
+        }
+
+        function updateStats() {
+            const total = items.length;
+            let matched = 0, surplus = 0, deficit = 0;
+
+            items.forEach(item => {
+                const diff = (item.physicalStock || 0) - (item.systemStock || 0);
+                if (diff === 0) matched++;
+                else if (diff > 0) surplus++;
+                else deficit++;
+            });
+
+            document.getElementById('stat-total-items').textContent = total;
+            document.getElementById('stat-matched').textContent = matched;
+            document.getElementById('stat-surplus').textContent = surplus;
+            document.getElementById('stat-deficit').textContent = deficit;
+
+            const matchedPct = total > 0 ? (matched / total) * 100 : 0;
+            const surplusPct = total > 0 ? (surplus / total) * 100 : 0;
+            const deficitPct = total > 0 ? (deficit / total) * 100 : 0;
+
+            document.getElementById('bar-matched').style.width = matchedPct + '%';
+            document.getElementById('bar-surplus').style.width = surplusPct + '%';
+            document.getElementById('bar-deficit').style.width = deficitPct + '%';
+
+            document.getElementById('accuracy-percentage').textContent = total > 0 
+                ? `${Math.round(matchedPct)}% Sesuai` 
+                : '0% Sesuai';
+        }
+
+        function populateFilters() {
+            const catSelect = document.getElementById('filter-category');
+            const rackSelect = document.getElementById('filter-rack');
+            
+            const selectedCat = catSelect.value;
+            const selectedRack = rackSelect.value;
+
+            const categories = [...new Set(items.map(i => i.category || 'Umum'))].sort();
+            const racks = [...new Set(items.map(i => i.rack || '-'))].sort();
+
+            catSelect.innerHTML = '<option value="ALL">Semua Kategori</option>';
+            categories.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                catSelect.appendChild(opt);
+            });
+
+            rackSelect.innerHTML = '<option value="ALL">Semua Rak</option>';
+            racks.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = `Rak: ${r}`;
+                rackSelect.appendChild(opt);
+            });
+
+            catSelect.value = categories.includes(selectedCat) ? selectedCat : 'ALL';
+            rackSelect.value = racks.includes(selectedRack) ? selectedRack : 'ALL';
+        }
+
+        function getFilteredItems() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const catFilter = document.getElementById('filter-category').value;
+            const rackFilter = document.getElementById('filter-rack').value;
+            const statusFilter = document.getElementById('filter-status').value;
+
+            return items.filter(item => {
+                const diff = (item.physicalStock || 0) - (item.systemStock || 0);
+                let status = 'SESUAI';
+                if (diff > 0) status = 'PLUS';
+                if (diff < 0) status = 'MINUS';
+
+                const matchesSearch = item.name.toLowerCase().includes(query) || 
+                                      item.sku.toLowerCase().includes(query) ||
+                                      (item.rack && item.rack.toLowerCase().includes(query));
+                
+                const matchesCat = catFilter === 'ALL' || (item.category || 'Umum') === catFilter;
+                const matchesRack = rackFilter === 'ALL' || (item.rack || '-') === rackFilter;
+                const matchesStatus = statusFilter === 'ALL' || status === statusFilter;
+
+                return matchesSearch && matchesCat && matchesRack && matchesStatus;
+            });
+        }
+
+        function renderTable() {
+            const filtered = getFilteredItems();
+            const desktopBody = document.getElementById('desktop-table-body');
+            const mobileContainer = document.getElementById('mobile-card-container');
+            const emptyState = document.getElementById('empty-state');
+
+            desktopBody.innerHTML = '';
+            mobileContainer.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach(item => {
+                const diff = (item.physicalStock || 0) - (item.systemStock || 0);
+                let badgeHTML = '';
+                if (diff === 0) {
+                    badgeHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800"><i data-lucide="check" class="w-3 h-3 mr-1"></i>Sesuai</span>`;
+                } else if (diff > 0) {
+                    badgeHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800"><i data-lucide="arrow-up" class="w-3 h-3 mr-1"></i>+${diff} (Plus)</span>`;
+                } else {
+                    badgeHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800"><i data-lucide="arrow-down" class="w-3 h-3 mr-1"></i>${diff} (Minus)</span>`;
+                }
+
+                // Desktop Row
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-medium text-slate-900">
+                        <div>${escapeHtml(item.name)}</div>
+                        <div class="text-[11px] text-slate-400 font-mono">${escapeHtml(item.sku)}</div>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-1 bg-slate-100 text-slate-700 font-mono rounded text-[11px] font-semibold">${escapeHtml(item.rack || '-')}</span>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[11px]">${escapeHtml(item.category || 'Umum')}</span>
+                    </td>
+                    <td class="py-3 px-3 text-center font-medium">${item.systemStock} ${item.unit}</td>
+                    <td class="py-3 px-3 text-center">
+                        <input type="number" min="0" value="${item.physicalStock}" 
+                               onchange="updateStock('${item.id}', this.value)"
+                               class="w-16 text-center py-1 px-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                    </td>
+                    <td class="py-3 px-3 text-center font-bold ${diff > 0 ? 'text-amber-600' : diff < 0 ? 'text-rose-600' : 'text-emerald-600'}">
+                        ${diff > 0 ? '+' + diff : diff}
+                    </td>
+                    <td class="py-3 px-3 text-center">${badgeHTML}</td>
+                    <td class="py-3 px-3">
+                        <input type="text" value="${escapeHtml(item.notes || '')}" placeholder="Catatan..."
+                               onchange="updateNotes('${item.id}', this.value)"
+                               class="w-full py-1 px-2 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white text-xs transition-all">
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end space-x-1">
+                            <button onclick="editItem('${item.id}')" class="p-1 text-slate-400 hover:text-indigo-600 rounded">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteItem('${item.id}')" class="p-1 text-slate-400 hover:text-rose-600 rounded">
+                                <i data-lucide="trash" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                desktopBody.appendChild(tr);
+
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = "mobile-card p-3 space-y-2.5";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <span class="text-[10px] font-mono text-slate-400 block">${escapeHtml(item.sku)}</span>
+                            <h4 class="font-bold text-slate-900 text-sm leading-tight">${escapeHtml(item.name)}</h4>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="editItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg">
+                                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="px-2 py-0.5 bg-slate-100 font-mono text-slate-700 font-bold rounded">Rak: ${escapeHtml(item.rack || '-')}</span>
+                        <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded">${escapeHtml(item.category || 'Umum')}</span>
+                        <div class="ml-auto">${badgeHTML}</div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-xl text-center items-center">
+                        <div>
+                            <span class="text-[10px] text-slate-400 block uppercase">Sistem</span>
+                            <span class="font-semibold text-xs">${item.systemStock} ${item.unit}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block uppercase">Fisik</span>
+                            <input type="number" min="0" value="${item.physicalStock}" 
+                                   onchange="updateStock('${item.id}', this.value)"
+                                   class="w-full text-center py-0.5 bg-white border border-slate-200 rounded text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block uppercase">Selisih</span>
+                            <span class="font-bold text-xs ${diff > 0 ? 'text-amber-600' : diff < 0 ? 'text-rose-600' : 'text-emerald-600'}">
+                                ${diff > 0 ? '+' + diff : diff}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <input type="text" value="${escapeHtml(item.notes || '')}" placeholder="Tambah catatan selisih..."
+                               onchange="updateNotes('${item.id}', this.value)"
+                               class="w-full py-1 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        function updateStock(id, newPhysicalStock) {
+            const val = parseInt(newPhysicalStock) || 0;
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.physicalStock = val;
+                saveData();
+            }
+        }
+
+        function updateNotes(id, newNote) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.notes = newNote;
+                saveData();
+            }
+        }
+
+        function openModal(mode, id = null) {
+            const modal = document.getElementById('item-modal');
+            const title = document.getElementById('modal-title');
+            const form = document.getElementById('item-form');
+            form.reset();
+
+            if (mode === 'add') {
+                title.textContent = 'Tambah Barang Baru';
+                document.getElementById('form-item-id').value = '';
+                document.getElementById('form-system-stock').value = 0;
+                document.getElementById('form-physical-stock').value = 0;
+                document.getElementById('form-unit').value = 'Pcs';
+            } else if (mode === 'edit' && id) {
+                const item = items.find(i => i.id === id);
+                if (item) {
+                    title.textContent = 'Edit Data Barang';
+                    document.getElementById('form-item-id').value = item.id;
+                    document.getElementById('form-sku').value = item.sku;
+                    document.getElementById('form-rack').value = item.rack || '';
+                    document.getElementById('form-category').value = item.category || '';
+                    document.getElementById('form-name').value = item.name;
+                    document.getElementById('form-system-stock').value = item.systemStock;
+                    document.getElementById('form-physical-stock').value = item.physicalStock;
+                    document.getElementById('form-unit').value = item.unit || 'Pcs';
+                    document.getElementById('form-notes').value = item.notes || '';
+                }
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('item-modal').classList.add('hidden');
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('form-item-id').value;
+            const sku = document.getElementById('form-sku').value.trim();
+            const rack = document.getElementById('form-rack').value.trim().toUpperCase();
+            const category = document.getElementById('form-category').value.trim();
+            const name = document.getElementById('form-name').value.trim();
+            const systemStock = parseInt(document.getElementById('form-system-stock').value) || 0;
+            const physicalStock = parseInt(document.getElementById('form-physical-stock').value) || 0;
+            const unit = document.getElementById('form-unit').value.trim() || 'Pcs';
+            const notes = document.getElementById('form-notes').value.trim();
+
+            if (id) {
+                const idx = items.findIndex(i => i.id === id);
+                if (idx !== -1) {
+                    items[idx] = { ...items[idx], sku, rack, category, name, systemStock, physicalStock, unit, notes };
+                }
+            } else {
+                const newItem = {
+                    id: 'item_' + Date.now(),
+                    sku,
+                    rack,
+                    category,
+                    name,
+                    systemStock,
+                    physicalStock,
+                    unit,
+                    notes
+                };
+                items.push(newItem);
+            }
+
+            saveData();
+            closeModal();
+        }
+
+        function editItem(id) {
+            openModal('edit', id);
+        }
+
+        function deleteItem(id) {
+            if (confirm('Apakah Anda yakin ingin menghapus barang ini?')) {
+                items = items.filter(i => i.id !== id);
+                saveData();
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('APAKAH ANDA YAKIN?\nSeluruh data barang akan dihapus dari sistem.')) {
+                items = [];
+                saveData();
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Export Excel SheetJS
+        function exportToExcel() {
+            if (items.length === 0) {
+                alert('Tidak ada data barang untuk diekspor!');
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+            
+            const grouped = {};
+            items.forEach(item => {
+                const cat = item.category || 'Umum';
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(item);
+            });
+
+            const excelRows = [];
+
+            excelRows.push(["LAPORAN HASIL STOCK OPNAME GUDANG"]);
+            excelRows.push(["Tanggal Audit:", dateStr]);
+            excelRows.push(["Petugas Audit:", "Packer"]);
+            excelRows.push([]);
+
+            let grandTotalSystem = 0;
+            let grandTotalPhysical = 0;
+            let grandTotalDiff = 0;
+
+            Object.keys(grouped).sort().forEach(cat => {
+                excelRows.push([`KATEGORI: ${cat.toUpperCase()}`]);
+                excelRows.push(["Kode Barang / SKU", "Kode Rak", "Nama Barang", "Stok Sistem", "Stok Fisik", "Selisih", "Satuan", "Status", "Catatan"]);
+
+                let subSystem = 0;
+                let subPhysical = 0;
+                let subDiff = 0;
+
+                grouped[cat].forEach(item => {
+                    const diff = (item.physicalStock || 0) - (item.systemStock || 0);
+                    let status = "Sesuai";
+                    if (diff > 0) status = "Plus (+)";
+                    if (diff < 0) status = "Minus (-)";
+
+                    excelRows.push([
+                        item.sku,
+                        item.rack || '-',
+                        item.name,
+                        item.systemStock,
+                        item.physicalStock,
+                        diff,
+                        item.unit,
+                        status,
+                        item.notes || ''
+                    ]);
+
+                    subSystem += item.systemStock;
+                    subPhysical += item.physicalStock;
+                    subDiff += diff;
+                });
+
+                excelRows.push(["SUBTOTAL " + cat.toUpperCase(), "", "", subSystem, subPhysical, subDiff, "", "", ""]);
+                excelRows.push([]);
+
+                grandTotalSystem += subSystem;
+                grandTotalPhysical += subPhysical;
+                grandTotalDiff += subDiff;
+            });
+
+            excelRows.push(["GRAND TOTAL AUDIT", "", "", grandTotalSystem, grandTotalPhysical, grandTotalDiff, "", "", ""]);
+
+            const ws = XLSX.utils.aoa_to_sheet(excelRows);
+
+            ws['!cols'] = [
+                { wch: 18 }, // SKU
+                { wch: 12 }, // Rak
+                { wch: 30 }, // Nama
+                { wch: 14 }, // Stok Sistem
+                { wch: 14 }, // Stok Fisik
+                { wch: 12 }, // Selisih
+                { wch: 10 }, // Satuan
+                { wch: 14 }, // Status
+                { wch: 30 }  // Catatan
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Hasil SO Gudang");
+
+            const filename = `Stock_Opname_Packer_${now.toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+    </script>
+</body>
+</html>
